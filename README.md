@@ -1,166 +1,149 @@
 # EnvSimple CLI
 
-A production-grade command-line tool for managing environment configurations with versioning, encryption, and team collaboration.
+Git for environment configuration.
 
-## Features
+Version your env state. Pull and push changes. Roll back safely. Stop sharing `.env` files in Slack.
 
-- 🔐 **Secure Authentication** - Device code flow for headless systems
-- 📦 **Snapshot-Based** - Full-state versioning (no merges, no diffs)
-- 🔄 **Pull/Push Workflow** - Git-style commands for env management
-- 🎯 **Local Overrides** - Override keys locally without pushing
-- 🔙 **Version Rollback** - Copy any snapshot to create new version
-- 🛡️ **Safety First** - Conflict detection, backups, and confirmations
-- 👁️ **Secret Masking** - Masked output by default
-- 📊 **Audit Logs** - Track all configuration changes
-- 📡 **Telemetry** - Anonymous usage tracking (opt-out supported)
+---
 
-## Installation
+## The Problem
 
-### From Source
+Developer onboarding takes hours because environment setup is undocumented chaos.
+
+Configuration lives in Slack threads, wikis, and stale `.env.example` files.
+
+Local changes drift from production. No one knows what changed or when.
+
+There's no rollback. Production breaks, and you grep through Git history hoping someone committed the old values.
+
+EnvSimple fixes this.
+
+---
+
+## What It Does
+
+EnvSimple is a CLI tool for managing environment configuration as versioned snapshots.
+
+It works like Git, but for `.env` files:
+
+- **Pull** the latest config from a shared environment
+- **Push** local changes to create a new version
+- **Roll back** to any previous snapshot
+- **Audit** who changed what and when
+
+Your app still reads from `.env`. EnvSimple just manages how that file gets there.
+
+---
+
+## How It Works
+
+EnvSimple is **snapshot-based**. Each push creates a complete, immutable version of your environment state.
+
+No diffs. No merges. No conflicts to resolve.
+
+When you push, you overwrite. When you pull, you sync to a specific version.
+
+Rollback creates a new version by copying an old snapshot. History is append-only.
+
+Base version checks prevent accidental overwrites. Backups are automatic.
+
+---
+
+## Install
+
+### macOS / Linux
 
 ```bash
-# Clone repository
-git clone https://github.com/yourorg/envsimple-cli
-cd envsimple-cli
-
-# Install dependencies
-bun install
-
-# Build
-bun run build
-
-# Or compile to standalone binary
-bun run compile
+curl -fsSL https://envsimple.com/install.sh | bash
 ```
 
-### Usage
+### Windows
 
-```bash
-# Link for development
-bun link
-
-# Then use globally
-envsimple --help
+```powershell
+iwr https://envsimple.com/install.ps1 | iex
 ```
+
+### Manual Install
+
+Download the binary for your platform from [releases](https://github.com/envsimple/cli/releases).
+
+Extract and add to your `PATH`.
+
+---
 
 ## Quick Start
 
-### 1. Authenticate
+### 1. Login
 
 ```bash
 envsimple login
 ```
 
-Follow the displayed URL and enter the user code to authenticate.
+Visit the URL and enter the code.
 
-### 2. Configure Context
-
-Create `.envsimple` file in your project:
-
-```yaml
-org: acme
-project: payments-api
-environment: dev
-```
-
-### 3. Pull Environment
+### 2. Pull Config
 
 ```bash
 envsimple pull
 ```
 
-This fetches the latest snapshot and writes to `.env`.
+If no context is configured, you'll select org → project → environment interactively.
 
-### 4. Make Changes and Push
+This writes your environment variables to `.env`.
+
+### 3. Run Your App
 
 ```bash
-# Edit .env file
-vim .env
+# .env is now populated
+npm start
+```
 
-# Push changes
+### 4. Push Changes
+
+Edit `.env`, then:
+
+```bash
 envsimple push
 ```
 
-## Commands
+This creates a new version snapshot.
 
-### Authentication
+---
 
-```bash
-envsimple login [--device]    # Login (device flow)
-envsimple logout              # Logout and revoke session
-```
+## Core Concepts
 
-### Context
+### Organization / Project / Environment
 
-```bash
-envsimple status                    # Show current context
-envsimple update <environment>      # Switch to different environment
-```
+Configuration is organized hierarchically:
 
-### Sync
+- **Organization**: Your company or team
+- **Project**: An application or service
+- **Environment**: `dev`, `staging`, `production`, etc.
 
-```bash
-envsimple pull                # Pull latest snapshot
-envsimple push [--force]      # Push local .env to remote
-```
+Each environment has its own version history.
 
-### View
+### Snapshots and Versions
 
-```bash
-envsimple print [--raw]       # Display variables (masked by default)
-envsimple log                 # Show recent version history
-envsimple versions            # List all versions
-envsimple audit               # Get audit logs
-  [--since TIMESTAMP]         #   Filter by start time
-  [--to TIMESTAMP]            #   Filter by end time
-```
+Every push creates an immutable snapshot.
 
-### Environment Management
+Versions are numbered sequentially: `v1`, `v2`, `v3`.
 
-```bash
-envsimple env list                        # List environments
-envsimple env create <name>               # Create environment
-envsimple env clone <source> <dest>       # Clone snapshot
-envsimple env delete [--permanent]        # Delete environment
-```
+Rollback copies a previous snapshot and creates a new version. It doesn't rewind history.
 
-### Rollback
+### Context Resolution
 
-```bash
-envsimple rollback --version <number>     # Rollback to version
-```
+EnvSimple needs to know which environment you're working with.
 
-### Telemetry
+Priority order:
 
-```bash
-envsimple telemetry enable      # Enable anonymous telemetry
-envsimple telemetry disable     # Disable telemetry
-envsimple telemetry status      # Show telemetry status
-```
+1. CLI flags: `--org`, `--project`, `--environment`
+2. `.envsimple.local` (local overrides, gitignored)
+3. `.envsimple` (shared, committed)
+4. Interactive selection
 
-## Global Flags
+### Overrides
 
-```bash
---json                   # Output in JSON format
---debug                  # Enable debug output
---org <org>              # Override organization
---project <project>      # Override project
---environment <env>      # Override environment
-```
-
-## Configuration Files
-
-### `.envsimple` (Shared, Committed)
-
-```yaml
-org: acme
-project: payments-api
-environment: production
-```
-
-Team-wide context configuration.
-
-### `.envsimple.local` (Local, Gitignored)
+`.envsimple.local` can define local-only overrides:
 
 ```yaml
 environment: dev-alice
@@ -168,278 +151,239 @@ environment: dev-alice
 overrides:
   DATABASE_URL: postgresql://localhost/mydb
   DEBUG: true
-  API_KEY: dev_key_12345
 ```
 
-Local-only configuration for:
-1. **Environment switching** - Change environment without modifying shared config
-2. **Local overrides** - Override specific keys for local development
+Overrides are applied during `pull` and `print`.
 
-**Creating .envsimple.local:**
-```bash
-# Create with text editor
-echo "environment: dev" > .envsimple.local
-echo "" >> .envsimple.local
-echo "overrides:" >> .envsimple.local
-echo "  DEBUG: true" >> .envsimple.local
+By default, overrides are **excluded** from `push` (you'll be prompted).
 
-# Or use update command
-envsimple update  # Saves to .envsimple.local by default
+This prevents local dev values from accidentally reaching production.
+
+---
+
+## Configuration Files
+
+### `.envsimple` (shared, committed)
+
+```yaml
+org: acme
+project: payments-api
+environment: production
 ```
 
-**Override Behavior:**
-- `pull` - Overrides applied to pulled values before writing .env
-- `push` - Overrides excluded by default (prompts to include)
-- `print` - Shows final values with overrides applied
+Team-wide context. Commit this.
 
-### `.env` (Generated, Gitignored)
+### `.envsimple.local` (local, gitignored)
+
+```yaml
+environment: dev-alice
+
+overrides:
+  DATABASE_URL: postgresql://localhost/mydb
+  DEBUG: true
+```
+
+Local context and overrides. Never committed.
+
+Use this to switch environments or override specific keys during development.
+
+### `.env` (generated, gitignored)
 
 ```
 DATABASE_URL=postgresql://prod.example.com/db
 API_KEY=sk_live_xyz123
-DEBUG=false
 ```
 
-Generated runtime configuration.
+Runtime configuration. Generated by `envsimple pull`.
 
-### `.env.copy` (Backup, Gitignored)
+Your application reads this. EnvSimple writes it.
+
+### `.env.copy` (backup, gitignored)
 
 Automatic backup created before risky operations.
 
-## Context Resolution
+If content differs during `pull`, a timestamped backup is appended.
 
-Priority order:
+---
 
-1. **CLI flags** (`--org`, `--project`, `--environment`)
-2. **`.envsimple.local`** (local overrides)
-3. **`.envsimple`** (shared context)
-4. **Interactive selection** (when no context found)
+## Commands
 
-## Safety Features
+### Authentication
 
-### Push Conflict Detection
-
-When remote version is newer:
-1. Creates `.env.copy` backup
-2. Shows conflict message
-3. Suggests pulling first
-4. Prompts for forced push
-
-### Override Handling
-
-Local overrides are:
-- Applied during pull
-- Applied during print
-- **Excluded from push by default**
-
-To include overrides in push:
 ```bash
-envsimple push
-# Prompts: "Include local overrides? (yes/no)"
+envsimple login           # Login via device code flow
+envsimple logout          # Logout and revoke session
 ```
 
-### Destructive Actions
+### Context
 
-Confirmation required for:
+```bash
+envsimple status          # Show current context and auth status
+envsimple update          # Switch environment (saves to .envsimple.local)
+envsimple update --shared # Switch environment (saves to .envsimple)
+envsimple help-config     # Show config file documentation
+```
+
+### Sync
+
+```bash
+envsimple pull            # Pull latest snapshot to .env
+envsimple push            # Push .env to remote (creates new version)
+envsimple push --force    # Force push (skip base version check)
+```
+
+### View
+
+```bash
+envsimple print           # Print env vars (masked by default)
+envsimple print --raw     # Print unmasked values
+envsimple versions        # List all version snapshots
+envsimple log             # Show recent version history
+envsimple audit           # Show audit logs with actor and timestamp
+```
+
+### Version Control
+
+```bash
+envsimple rollback --target <version>  # Roll back to specific version
+```
+
+Rollback creates a new version by copying the target snapshot.
+
+Your `.env` is backed up to `.env.copy` before rollback.
+
+### Environment Management
+
+```bash
+envsimple env list                          # List environments
+envsimple env create <name>                 # Create new environment
+envsimple env clone <source> <destination>  # Clone environment
+envsimple env delete                        # Soft delete environment
+envsimple env delete --permanent            # Permanently delete
+```
+
+### Telemetry
+
+```bash
+envsimple telemetry status   # Check telemetry status
+envsimple telemetry disable  # Disable telemetry
+envsimple telemetry enable   # Enable telemetry
+```
+
+### Global Flags
+
+```bash
+--org <slug>               # Override organization
+--project <name>           # Override project
+--environment <name>       # Override environment
+--json                     # Output JSON
+--debug                    # Enable debug output
+```
+
+---
+
+## Safety Model
+
+### Snapshot Isolation
+
+Each push creates a complete, immutable snapshot.
+
+There are no diffs, patches, or merges. You can't corrupt history.
+
+### Base Version Checks
+
+Before pushing, EnvSimple checks if the remote has changed since your last pull.
+
+If the remote is newer, you'll be warned and prompted to pull first.
+
+Use `--force` to bypass this check (creates a forced push marker).
+
+### Automatic Backups
+
+`.env.copy` is created before risky operations.
+
+If `.env.copy` already exists, new backups are appended with timestamps.
+
+### Confirmations
+
+Destructive actions require confirmation:
+
 - Environment deletion
-- Permanent environment deletion
+- Pulling empty environments (might overwrite local config)
 - Forced push on conflict
 
-## Secret Masking
+### Override Exclusion
 
-By default, values are masked:
+Local overrides (from `.envsimple.local`) are excluded from push by default.
+
+You'll be prompted if your `.env` contains override keys:
+
 ```
-API_KEY=sk***23
-```
+⚠ Local .env contains keys defined in .envsimple.local overrides:
+  - DATABASE_URL
 
-To show full values:
-```bash
-envsimple print --raw
-```
+If you say "yes", the values from your .env will be pushed to remote.
+If you say "no", these keys will be excluded from the push.
 
-## JSON Mode
-
-For scripting and automation:
-
-```bash
-envsimple status --json
-envsimple pull --json
-envsimple push --json
+Include these keys in push? (y/N)
 ```
 
-Output structure:
-```json
-{
-  "status": "success",
-  "version": 5,
-  "keys": 12
-}
-```
+This prevents accidental promotion of local dev values.
 
-Errors:
-```json
-{
-  "error": "CONFLICT",
-  "message": "Remote version is newer"
-}
-```
+---
 
-## Examples
+## Telemetry
 
-### Switch Environment
+EnvSimple collects anonymous usage telemetry to improve the product.
+
+**What's collected:**
+- Command names
+- Execution success/failure
+- CLI version
+- OS type
+
+**What's NOT collected:**
+- Environment variable keys or values
+- Organization/project names
+- User email or identity
+- File paths
+
+Opt out anytime:
 
 ```bash
-# Update local context to staging
-envsimple update staging
-
-# Pull staging environment
-envsimple pull
+envsimple telemetry disable
 ```
 
-### Clone Environment
+---
 
-```bash
-# Clone production to preview
-envsimple env clone production preview
+## Security
 
-# Context automatically switches to preview
-envsimple status
-# Environment: preview
-```
+Report security vulnerabilities to: **contact@envsimple.com**
 
-### Rollback
+Please do not open public issues for security concerns.
 
-```bash
-# View versions
-envsimple versions
-
-# Rollback to version 3
-envsimple rollback --version 3
-
-# Pull the rolled-back version
-envsimple pull
-```
-
-### Audit Trail
-
-```bash
-# Get recent audit logs
-envsimple audit
-
-# Filter by date range
-envsimple audit --since 2024-01-01T00:00:00Z --to 2024-01-31T23:59:59Z
-```
-
-## Development
-
-### Project Structure
-
-```
-src/
-├── commands/       # Command handlers
-├── api/           # API client
-├── auth/          # Authentication
-├── config/        # Context resolution
-├── env/           # .env file operations
-├── output/        # Formatting
-├── telemetry/     # Usage tracking
-└── utils/         # Shared utilities
-```
-
-### Run Locally
-
-```bash
-# Development mode
-bun run dev status
-
-# Build
-bun run build
-
-# Compile standalone binary
-bun run compile
-```
-
-### Testing
-
-```bash
-# Run tests (when implemented)
-bun test
-```
-
-## Environment Variables
-
-### `ENVSIMPLE_API_URL`
-
-Override API base URL:
-```bash
-export ENVSIMPLE_API_URL=https://api.staging.envsimple.dev
-envsimple pull
-```
-
-## Files Created
-
-### `~/.envsimple/credentials.json`
-Stores authentication tokens (permissions: 600)
-
-### `~/.envsimple/telemetry.json`
-Telemetry configuration and anonymous ID
-
-## Troubleshooting
-
-### "Not logged in" Error
-
-```bash
-envsimple login
-```
-
-### "Context not resolved" Error
-
-Create `.envsimple` file or use flags:
-```bash
-envsimple pull --org acme --project api --environment dev
-```
-
-### Network Errors
-
-Check API URL:
-```bash
-echo $ENVSIMPLE_API_URL
-```
-
-Enable debug mode:
-```bash
-envsimple --debug pull
-```
-
-### Permission Errors
-
-Verify your role:
-```bash
-envsimple status
-```
-
-Contact your organization admin to grant permissions.
+---
 
 ## Contributing
 
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/amazing`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing`)
-5. Open Pull Request
+Contributions are welcome.
+
+EnvSimple CLI is open source under the Apache 2.0 License.
+
+By contributing, you agree to license your work under the same terms.
+
+---
 
 ## License
 
-MIT
+Apache License 2.0
 
-## Support
+See [LICENSE](LICENSE) file for full text.
 
-- Documentation: [https://docs.envsimple.dev](https://docs.envsimple.dev)
-- Issues: [https://github.com/yourorg/envsimple-cli/issues](https://github.com/yourorg/envsimple-cli/issues)
-- Email: support@envsimple.dev
+---
 
-## Related Documentation
+## Trademark
 
-- [implementation.md](./implementation.md) - Architecture and design decisions
-- [assumptions.md](./assumptions.md) - Assumptions made during implementation
-- [missing-backend.md](./missing-backend.md) - Backend API gaps and recommendations
+**EnvSimple** is a trademark of EnvSimple.
+
+Forks and derivatives may not use the EnvSimple name or logo in a way that suggests official affiliation.

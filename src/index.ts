@@ -25,6 +25,7 @@ program
   .name('envsimple')
   .description('CLI-first environment configuration management')
   .version('1.0.0')
+  .addHelpText('after', '\nEnvSimple is a trademark of EnvSimple.')
   .option('--json', 'Output in JSON format')
   .option('--debug', 'Enable debug output')
   .option('--org <org>', 'Organization slug')

@@ -39,19 +39,21 @@ jobs:
           ENVSIMPLE_API_URL: ${{ secrets.ENVSIMPLE_API_URL }}
         run: bun build src/index.ts --compile --minify --outfile envsimple
 
-      - name: Rename Windows binary
-        if: runner.os == 'Windows'
-        run: Rename-Item envsimple envsimple.exe
-
       - name: Package artifact
+        shell: bash
         run: |
           mkdir dist
+
           if [ "$RUNNER_OS" = "Windows" ]; then
-            mv envsimple.exe dist/envsimple-${{ steps.platform.outputs.name }}.exe
+            if [ -f envsimple.exe ]; then
+              mv envsimple.exe dist/envsimple-${{ steps.platform.outputs.name }}.exe
+            else
+              mv envsimple dist/envsimple-${{ steps.platform.outputs.name }}.exe
+            fi
           else
             mv envsimple dist/envsimple-${{ steps.platform.outputs.name }}
           fi
-        shell: bash
+
 
       - name: Upload artifact
         uses: softprops/action-gh-release@v2

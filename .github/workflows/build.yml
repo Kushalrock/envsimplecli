@@ -23,10 +23,7 @@ jobs:
       - name: Compile CLI
         env:
           ENVSIMPLE_API_URL: ${{ secrets.ENVSIMPLE_API_URL }}
-        run: |
-          bun build src/index.ts \
-            --compile \
-            --outfile envsimple-test
+        run: bun build src/index.ts --compile --minify --outfile envsimple
 
       - name: Smoke test
-        run: ./envsimple-test --help
+        run: ./envsimple --help

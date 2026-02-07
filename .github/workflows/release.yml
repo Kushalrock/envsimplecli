@@ -37,16 +37,11 @@ jobs:
       - name: Build binary
         env:
           ENVSIMPLE_API_URL: ${{ secrets.ENVSIMPLE_API_URL }}
-        run: |
-          bun build src/index.ts \
-            --compile \
-            --minify \
-            --outfile envsimple
+        run: bun build src/index.ts --compile --minify --outfile envsimple
 
-      - name: Rename binary
-        run: |
-          if [ "$RUNNER_OS" = "Windows" ]; then mv envsimple envsimple.exe; fi
-        shell: bash
+      - name: Rename Windows binary
+        if: runner.os == 'Windows'
+        run: Rename-Item envsimple envsimple.exe
 
       - name: Package artifact
         run: |

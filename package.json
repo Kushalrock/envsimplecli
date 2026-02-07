@@ -12,7 +12,7 @@
   "scripts": {
     "dev": "bun run src/index.ts",
     "build": "bun build src/index.ts --outfile dist/index.js --target bun --minify",
-    "compile": "bun build src/index.ts --compile --outfile envsimple",
+    "compile": "bun build src/index.ts --compile --minify --outfile envsimple",
     "link": "bun link"
   },
   "devDependencies": {

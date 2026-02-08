@@ -113,10 +113,11 @@ export async function saveSharedContext(
 export async function resolveContext(
   options: CLIOptions,
   output: Output,
-  cwd: string = process.cwd()
+  cwd: string = process.cwd(),
+  skipLocal: boolean = false
 ): Promise<ResolvedContext | null> {
   const shared = await loadSharedContext(cwd);
-  const local = await loadLocalContext(cwd);
+  const local = skipLocal ? null : await loadLocalContext(cwd);
 
   if (options.org && options.project && options.environment) {
     return {

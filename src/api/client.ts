@@ -21,6 +21,7 @@ interface RequestOptions {
   headers?: Record<string, string>;
   body?: any;
   requireAuth?: boolean;
+  serviceToken?: string;
 }
 
 /**
@@ -35,6 +36,7 @@ async function request<T>(
     headers = {},
     body,
     requireAuth = true,
+    serviceToken,
   } = options;
 
   const url = `${BASE_URL}${endpoint}`;
@@ -45,10 +47,9 @@ async function request<T>(
 
   if (requireAuth) {
     try {
-      const authHeader = await getAuthHeader();
+      const authHeader = await getAuthHeader(serviceToken);
       requestHeaders['Authorization'] = authHeader;
     } catch (error) {
-      // Auth errors will be thrown by getAuthHeader
       throw error;
     }
   }
@@ -231,8 +232,8 @@ export async function cloneEnvironment(
 /**
  * Get current version of environment
  */
-export async function getCurrentVersion(envId: string): Promise<VersionSnapshot> {
-  return request(`/envs/${envId}/current`, { method: 'GET' });
+export async function getCurrentVersion(envId: string, serviceToken?: string): Promise<VersionSnapshot> {
+  return request(`/envs/${envId}/current`, { method: 'GET', serviceToken });
 }
 
 /**
@@ -240,9 +241,10 @@ export async function getCurrentVersion(envId: string): Promise<VersionSnapshot>
  */
 export async function getVersionSnapshot(
   envId: string,
-  versionNumber: number
+  versionNumber: number,
+  serviceToken?: string
 ): Promise<VersionSnapshot> {
-  return request(`/envs/${envId}/versions/${versionNumber}`, { method: 'GET' });
+  return request(`/envs/${envId}/versions/${versionNumber}`, { method: 'GET', serviceToken });
 }
 
 /**
@@ -251,7 +253,8 @@ export async function getVersionSnapshot(
 export async function pushVersion(
   envId: string,
   plaintext: string,
-  baseVersionNumber?: number
+  baseVersionNumber?: number,
+  serviceToken?: string
 ): Promise<{
   version: {
     id: string;
@@ -267,6 +270,7 @@ export async function pushVersion(
   return request(`/envs/${envId}/versions`, {
     method: 'POST',
     body,
+    serviceToken,
   });
 }
 

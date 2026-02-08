@@ -119,15 +119,18 @@ program
 program
   .command('pull')
   .description('Pull latest environment snapshot')
-  .action(async () => {
+  .option('--token', 'Use service token from ENVSIMPLE_SERVICE_TOKEN env var (for CI)')
+  .option('--version <number>', 'Pull specific version number', parseInt)
+  .action(async (options) => {
     const globalOpts = program.opts();
-    await pullCommand(globalOpts);
+    await pullCommand({ ...globalOpts, ...options });
   });
 
 program
   .command('push')
   .description('Push local .env to remote')
   .option('--force', 'Force push even if conflicts')
+  .option('--token', 'Use service token from ENVSIMPLE_SERVICE_TOKEN env var (for CI)')
   .action(async (options) => {
     const globalOpts = program.opts();
     await pushCommand({ ...globalOpts, ...options });

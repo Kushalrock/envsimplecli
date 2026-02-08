@@ -137,9 +137,19 @@ export async function requireAuth(): Promise<Credentials> {
 }
 
 /**
- * Get authorization header value
+ * Get service token from environment variable
  */
-export async function getAuthHeader(): Promise<string> {
+export function getServiceToken(): string | undefined {
+  return process.env.ENVSIMPLE_SERVICE_TOKEN || undefined;
+}
+
+/**
+ * Get authorization header (user or service token)
+ */
+export async function getAuthHeader(serviceToken?: string): Promise<string> {
+  if (serviceToken) {
+    return `Bearer ${serviceToken}`;
+  }
   const credentials = await requireAuth();
   return `Bearer ${credentials.access_token}`;
 }

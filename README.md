@@ -232,6 +232,36 @@ envsimple push            # Push .env to remote (creates new version)
 envsimple push --force    # Force push (skip base version check)
 ```
 
+### CI/CD Mode
+
+For automated workflows, use service tokens:
+
+```bash
+# Set service token in environment
+export ENVSIMPLE_SERVICE_TOKEN=esv1_xxx
+
+# Pull with service token
+envsimple pull --token
+
+# Push with service token
+envsimple push --token
+```
+
+**Requirements:**
+- `.envsimple` file must exist (service tokens don't support interactive mode)
+- Only pull and push operations are allowed subject to authorization.
+- No access to other resources (users, orgs, audit logs, etc.)
+
+**CI Example:**
+
+```yaml
+# GitHub Actions
+- name: Pull environment config
+  run: envsimple pull --token
+  env:
+    ENVSIMPLE_SERVICE_TOKEN: ${{ secrets.ENVSIMPLE_SERVICE_TOKEN }}
+```
+
 ### View
 
 ```bash

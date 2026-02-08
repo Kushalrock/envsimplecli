@@ -4,8 +4,8 @@
 
 import type { CLIOptions } from '../utils/types.js';
 import { createOutput } from '../output/formatter.js';
-import { resolveContext, getLocalOverrides } from '../config/context.js';
-import { requireAuth } from '../auth/credentials.js';
+import { resolveContext, getLocalOverrides, loadSharedContext } from '../config/context.js';
+import { requireAuth, getServiceToken } from '../auth/credentials.js';
 import { listOrganizations, listProjects, listEnvironments, getCurrentVersion, pushVersion } from '../api/client.js';
 import { readEnvFile, createBackup, parseEnvContent, formatEnvContent } from '../env/file-ops.js';
 import { sendTelemetryEvent } from '../telemetry/telemetry.js';
@@ -13,15 +13,32 @@ import { confirm } from '../utils/prompts.js';
 import { ConflictError } from '../utils/errors.js';
 import { getVersionInfo, updateVersionInfo } from '../utils/version-tracker.js';
 
-export async function pushCommand(options: CLIOptions & { force?: boolean }): Promise<void> {
+export async function pushCommand(options: CLIOptions & { force?: boolean; token?: boolean }): Promise<void> {
   const output = createOutput(options);
 
   try {
-    // Require authentication
-    await requireAuth();
+    let serviceToken: string | undefined;
+    
+    if (options.token) {
+      serviceToken = getServiceToken();
+      if (!serviceToken) {
+        throw new Error('ENVSIMPLE_SERVICE_TOKEN environment variable is required when using --token flag');
+      }
+      
+      if (!options.org || !options.project || !options.environment) {
+        const sharedContext = await loadSharedContext();
+        if (!sharedContext) {
+          throw new Error('Either .envsimple file or --org, --project, --environment flags are required when using --token flag.');
+        }
+      }
+      
+      output.info('✓ Using service token\n');
+    } else {
+      await requireAuth();
+    }
 
     // Resolve context
-    const context = await resolveContext(options, output);
+    const context = await resolveContext(options, output, process.cwd(), options.token);
 
     if (!context) {
       throw new Error('Context not resolved. Use flags or create .envsimple file.');
@@ -43,7 +60,7 @@ export async function pushCommand(options: CLIOptions & { force?: boolean }): Pr
     const envKeys = Object.keys(localEnv);
     const hasOverrides = envKeys.some(k => overrideKeys.has(k));
 
-    if (hasOverrides && !options.force) {
+    if (hasOverrides && !options.force && !options.token) {
       output.warning('Local .env contains keys defined in .envsimple.local overrides:');
       
       for (const key of envKeys) {
@@ -96,9 +113,11 @@ export async function pushCommand(options: CLIOptions & { force?: boolean }): Pr
     // Get base version from version tracker (unless force push)
     let baseVersionNumber: number | undefined;
     
-    if (options.force) {
+    if (options.force || options.token) {
       baseVersionNumber = undefined;
-      output.warning('⚠️  Force push: This will overwrite remote changes');
+      if (!options.token) {
+        output.warning('⚠️  Force push: This will overwrite remote changes');
+      }
     } else {
       const versionInfo = await getVersionInfo(
         context.org,
@@ -118,12 +137,14 @@ export async function pushCommand(options: CLIOptions & { force?: boolean }): Pr
       }
     }
 
-    const backupCreated = await createBackup();
+    if (!options.token) {
+      await createBackup();
+    }
 
     const plaintext = formatEnvContent(localEnv);
 
     try {
-      const result = await pushVersion(envData.id, plaintext, baseVersionNumber);
+      const result = await pushVersion(envData.id, plaintext, baseVersionNumber, serviceToken);
 
       // Update version tracker with new version
       await updateVersionInfo(
@@ -154,16 +175,11 @@ export async function pushCommand(options: CLIOptions & { force?: boolean }): Pr
         }
       }
     } catch (error: any) {
-      // Handle conflict (outdated base version)
       if (error.code === 'CONFLICT' || error.message?.includes('conflict')) {
-        if (backupCreated) {
-          output.warning('Backup saved to .env.copy');
-        }
-        
         output.error('Remote version is newer than your base.');
         output.info('\nRun "envsimple pull" to sync first, then push again.');
         
-        if (!options.force) {
+        if (!options.force && !options.token) {
           const forcePush = await confirm(
             '\nPush anyway (forced push)?',
             false,
@@ -171,7 +187,7 @@ export async function pushCommand(options: CLIOptions & { force?: boolean }): Pr
           );
 
           if (forcePush) {
-            const result = await pushVersion(envData.id, plaintext);
+            const result = await pushVersion(envData.id, plaintext, undefined, serviceToken);
             
             await updateVersionInfo(
               context.org,

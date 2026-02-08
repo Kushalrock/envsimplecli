@@ -4,29 +4,47 @@
 
 import type { CLIOptions } from '../utils/types.js';
 import { createOutput } from '../output/formatter.js';
-import { resolveContext, getLocalOverrides, saveSharedContext } from '../config/context.js';
-import { requireAuth } from '../auth/credentials.js';
-import { listOrganizations, listProjects, listEnvironments, getCurrentVersion } from '../api/client.js';
+import { resolveContext, getLocalOverrides, saveSharedContext, loadSharedContext } from '../config/context.js';
+import { requireAuth, getServiceToken } from '../auth/credentials.js';
+import { listOrganizations, listProjects, listEnvironments, getCurrentVersion, getVersionSnapshot } from '../api/client.js';
 import { writeEnvFile, ensureGitignore, parseEnvContent, formatEnvContent, applyOverrides, readEnvFile } from '../env/file-ops.js';
 import { sendTelemetryEvent } from '../telemetry/telemetry.js';
 import { select, confirm } from '../utils/prompts.js';
 import { updateVersionInfo } from '../utils/version-tracker.js';
 import { existsSync, copyFileSync } from 'fs';
 
-export async function pullCommand(options: CLIOptions): Promise<void> {
+export async function pullCommand(options: CLIOptions & { token?: boolean; version?: number }): Promise<void> {
   const output = createOutput(options);
 
   try {
-    // Require authentication
-    await requireAuth();
+    let serviceToken: string | undefined;
     
-    output.info('✓ Authenticated\n');
+    if (options.token) {
+      serviceToken = getServiceToken();
+      if (!serviceToken) {
+        throw new Error('ENVSIMPLE_SERVICE_TOKEN environment variable is required when using --token flag');
+      }
+      
+      if (!options.org || !options.project || !options.environment) {
+        const sharedContext = await loadSharedContext();
+        if (!sharedContext) {
+          throw new Error('Either .envsimple file or --org, --project, --environment flags are required when using --token flag.');
+        }
+      }
+      
+      output.info('✓ Using service token\n');
+    } else {
+      await requireAuth();
+      output.info('✓ Authenticated\n');
+    }
 
 
-    // Resolve context (interactive if needed)
-    let context = await resolveContext(options, output);
+    let context = await resolveContext(options, output, process.cwd(), options.token);
 
     if (!context) {
+      if (options.token) {
+        throw new Error('.envsimple file is required when using --token flag. Service tokens do not support interactive mode.');
+      }
       if (options.json) {
         output.json({
           error: 'CONTEXT_REQUIRED',
@@ -100,15 +118,15 @@ export async function pullCommand(options: CLIOptions): Promise<void> {
       throw new Error(`Environment "${context.environment}" not found`);
     }
 
-    // Fetch current version
-    const snapshot = await getCurrentVersion(envData.id);
+    const snapshot = options.version
+      ? await getVersionSnapshot(envData.id, options.version, serviceToken)
+      : await getCurrentVersion(envData.id, serviceToken);
 
     // Parse environment
     const baseEnv = parseEnvContent(snapshot.plaintext);
 
-    // Check if pulling empty or no version - confirm before overwriting
     const keyCount = Object.keys(baseEnv).length;
-    if ((snapshot.version_number === 0 || keyCount === 0) && !options.json) {
+    if ((snapshot.version_number === 0 || keyCount === 0) && !options.json && !options.token) {
       output.warning(`⚠️  This environment has ${keyCount === 0 ? 'no keys' : `version ${snapshot.version_number}`}`);
       const shouldContinue = await confirm(
         'This will overwrite your local .env file. Continue?',
@@ -122,14 +140,17 @@ export async function pullCommand(options: CLIOptions): Promise<void> {
       }
     }
 
-    // Apply local overrides
-    const localOverrides = await getLocalOverrides();
-    const finalEnv = applyOverrides(baseEnv, localOverrides);
+    let finalEnv = baseEnv;
+    let localOverrides: Record<string, string> = {};
+    
+    if (!options.token) {
+      localOverrides = await getLocalOverrides();
+      finalEnv = applyOverrides(baseEnv, localOverrides);
+    }
 
-    // Check for mismatch with current .env and create backup if different
     const envContent = formatEnvContent(finalEnv);
     
-    if (existsSync('.env')) {
+    if (existsSync('.env') && !options.token) {
       try {
         const currentContent = await readEnvFile();
         
@@ -159,13 +180,9 @@ export async function pullCommand(options: CLIOptions): Promise<void> {
       }
     }
 
-    // Write to .env
     await writeEnvFile(envContent);
-
-    // Ensure .gitignore
     await ensureGitignore();
 
-    // Track base version for future pushes
     await updateVersionInfo(
       context.org,
       context.project,
@@ -187,7 +204,8 @@ export async function pullCommand(options: CLIOptions): Promise<void> {
         overrides_applied: Object.keys(localOverrides).length,
       });
     } else {
-      output.success(`Pulled version ${snapshot.version_number} from ${context.environment}`);
+      const versionMsg = options.version ? ` (v${options.version})` : '';
+      output.success(`Pulled version ${snapshot.version_number} from ${context.environment}${versionMsg}`);
       output.info(`${Object.keys(finalEnv).length} keys written to .env`);
       
       if (Object.keys(localOverrides).length > 0) {

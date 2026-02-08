@@ -84,7 +84,7 @@ export async function refreshAccessToken(): Promise<void> {
     throw new AuthenticationError('No refresh token available. Please login again.');
   }
 
-  const BASE_URL = process.env.ENVSIMPLE_API_URL || 'https://api.envsimple.dev';
+  const BASE_URL = process.env.ENVSIMPLE_API_URL || 'https://api.envsimple.com';
   
   try {
     const response = await fetch(`${BASE_URL}/auth/refresh`, {

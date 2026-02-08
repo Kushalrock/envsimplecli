@@ -14,7 +14,7 @@ import type {
 } from '../utils/types.js';
 
 // Base URL - should be configurable
-const BASE_URL = process.env.ENVSIMPLE_API_URL || 'https://api.envsimple.dev';
+const BASE_URL = process.env.ENVSIMPLE_API_URL || 'https://api.envsimple.com';
 
 interface RequestOptions {
   method?: string;

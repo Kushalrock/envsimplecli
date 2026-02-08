@@ -80,7 +80,7 @@ export async function sendTelemetryEvent(
     return;
   }
 
-  const TELEMETRY_URL = process.env.ENVSIMPLE_API_URL || 'https://api.envsimple.dev';
+  const TELEMETRY_URL = process.env.ENVSIMPLE_API_URL || 'https://api.envsimple.com';
   const CLI_VERSION = '1.0.0';
   
   const telemetryData = {

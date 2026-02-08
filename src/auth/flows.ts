@@ -58,7 +58,7 @@ export async function deviceCodeFlow(output: Output): Promise<void> {
       // Try to get user info for display (optional)
       try {
         const tempAuthHeader = `Bearer ${tokenData.access_token}`;
-        const userResponse = await fetch(`${process.env.ENVSIMPLE_API_URL || 'https://api.envsimple.dev'}/auth/me`, {
+        const userResponse = await fetch(`${process.env.ENVSIMPLE_API_URL || 'https://api.envsimple.com'}/auth/me`, {
           headers: { Authorization: tempAuthHeader },
         });
         

@@ -10,4 +10,8 @@ if ($path -notlike "*$env:USERPROFILE*") {
   [Environment]::SetEnvironmentVariable("PATH", "$path;$env:USERPROFILE", "User")
 }
 
+# Refresh PATH in current session
+$env:PATH = [Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + [Environment]::GetEnvironmentVariable("PATH", "User")
+
 Write-Host "Installed EnvSimple CLI"
+Write-Host "Run 'envsimple --help' to get started"

@@ -49,28 +49,6 @@ Base version checks prevent accidental overwrites. Backups are automatic.
 
 ---
 
-## Install
-
-### macOS / Linux
-
-```bash
-curl -fsSL https://envsimple.com/install.sh | bash
-```
-
-### Windows
-
-```powershell
-iwr https://envsimple.com/install.ps1 | iex
-```
-
-### Manual Install
-
-Download the binary for your platform from [releases](https://github.com/envsimple/cli/releases).
-
-Extract and add to your `PATH`.
-
----
-
 ## Quick Start
 
 ### 1. Login

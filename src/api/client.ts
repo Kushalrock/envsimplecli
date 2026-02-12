@@ -157,7 +157,7 @@ export async function getCurrentUser(): Promise<{
  * Sign out
  */
 export async function signOut(): Promise<void> {
-  await request('/api/auth/sign-out', { method: 'POST' });
+  await request('/cli/sign-out', { method: 'POST' });
 }
 
 /**
